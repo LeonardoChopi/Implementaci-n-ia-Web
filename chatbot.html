@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chatbot Multi-Modelo</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; }
+    #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; margin-bottom: 10px; }
+    .msg { margin: 8px 0; }
+    .user { font-weight: bold; }
+    .bot { color: blue; }
+  </style>
+</head>
+<body>
+  <h2>Chatbot Local</h2>
+
+  <!-- Indicador de estado de conexión con la API -->
+  <p id="status">Estado API: Verificando...</p>
+
+  <!-- Selector del modelo a utilizar -->
+  <select id="model">
+    <option value="google/gemma-3-1b">Gemma 3 1B</option>
+    <option value="qwen/qwen3-1.7b">Qwen 3 1.7B</option>
+    <option value="liquid/lfm2-1.2b">Liquid LFM2 1.2B</option>
+  </select>
+
+  <!-- Área donde se muestran los mensajes -->
+  <div id="chat"></div>
+
+  <!-- Input donde el usuario escribe -->
+  <input type="text" id="prompt" placeholder="Escribe tu mensaje..." style="width: 80%;">
+
+  <!-- Botón para enviar -->
+  <button onclick="sendMessage()">Enviar</button>
+
+  <footer>
+    <p>&copy; 2025 chatbot ejemplo - derechos en <a href="https://mit-license.org/">MIT Licencia</a>.</p>
+  </footer>
+
+  <script>
+    // URL del servidor local de LM Studio / OpenAI-compatible
+    
+    // Función para verificar si la API está conectada
+    async function checkConnection() {
+      const status = document.getElementById('status');
+      try {
+        const response = await fetch('http://localhost:1234/v1/models');
+        if (response.ok) {
+          status.textContent = 'Estado API: Conectado';
+          status.style.color = 'green';
+        } else {
+          status.textContent = 'Estado API: Sin respuesta válida';
+          status.style.color = 'orange';
+        }
+      } catch {
+        status.textContent = 'Estado API: Desconectado';
+        status.style.color = 'red';
+      }
+    }
+
+    // Verificar conexión al cargar la página y cada 5 segundos
+    checkConnection();
+    setInterval(checkConnection, 5000);
+
+    // URL del servidor local de LM Studio
+    const API_URL = 'http://localhost:1234/v1/chat/completions';
+
+    // Función para agregar mensajes al chat visualmente
+    function addMessage(sender, text, className) {
+      const chat = document.getElementById('chat');
+      chat.innerHTML += `<div class="msg ${className}">${sender}: ${text}</div>`;
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    // Función principal que envía el mensaje al modelo seleccionado
+    async function sendMessage() {
+      const input = document.getElementById('prompt');
+      const model = document.getElementById('model').value;
+      const message = input.value.trim();
+
+      if (!message) return;
+
+      // Mostrar mensaje del usuario en pantalla
+      addMessage('Tú', message, 'user');
+      input.value = '';
+
+      try {
+        // Enviar petición al modelo local
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: 'user', content: message }
+            ]
+          })
+        });
+
+        const data = await response.json();
+
+        // Mostrar respuesta del modelo
+        const reply = data.choices?.[0]?.message?.content || 'Sin respuesta';
+        addMessage('Bot', reply, 'bot');
+
+      } catch (error) {
+        // Mostrar error si el servidor no responde
+        addMessage('Error', 'No se pudo conectar con LM Studio/API local', 'bot');
+        console.error(error);
+      }
+    }
+  </script>
+</body>
+</html>
